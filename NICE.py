@@ -41,11 +41,9 @@ class additive_coupling_layer(nn.Module):
     def __init__(self, D, split):
         super().__init__()
 
-    # split x into x1 and x2
-    # y1 = x1
-    # y2 = x2 + m(x1) where m() could be arbitrarily complex
-    # y = concat(y1, y2)
-    def split_x(self, x):
+    self.m = MLP()
+
+    def split(self, x):
         if self.split == 1:
             x_i1 = x[:d]
             x_i2 = x[d:]
@@ -55,43 +53,43 @@ class additive_coupling_layer(nn.Module):
         return x_i1, x_i2
 
     def forward(self, x):
-        x_1, x_2 = self.split_x(x)
+        x_1, x_2 = self.split(x)
         y_1 = x_1.clone()
-        y_2 = x_2 + MLP(x_1)
+        y_2 = x_2 + self.m(x_1)
 
         y = torch.concat(y1, y2)
         return y
 
-    def invert(self, y):
-        # return x
-        if self.split ==1:
-            x_1 = x[:d]
-            x_2 = x[d:]
-
+    def invert(self, h):
+        # original formula: h_i2 = x_i2 + m(x_i1)
+        # new formula:      x_i2 = h_i2 - m(h_i1)
+        h_i1, h_i2 = self.split(h)
+        x_i1 = h_i1
+        x_i2 = h_i2 - self.m(h_i1)
+        x = torch.concat(x_i1, x_i2)
+        return x
 
 
 class NICE(nn.Module):
     def __init__(self, num_coupling_layers=4, D=28*28):
         super().__init__()
         self.latent_distr = StandardLogisticDistribution(D)
-        self.num_coupling_layers = num_coupling_layers
+        self.S = nn.Parameter(torch.randn(D))
         coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2) for i in range(num_coupling_layers)])
-        self.s = torch.
-
 
     def forward(self, x):
         for coupling_layer in self.coupling_layers_list:
             x = coupling_layer(x)
-        return x
+        z = self.S.exp() * x
+        log_jacobian = self.S.sum()
+
+        return z, log_jacobian
 
     def generate(self):
         z = self.latent_distr.sample()
-        x = z / self.s.exp()
+        x = z / self.S.exp()
 
-        # invert the computations
-        for coupling_layer in self.coupling_layers_list:
-
-
-
-
-
+        # invert the coupling layers
+        for coupling_layer in reversed(self.coupling_layers_list):
+            x = coupling_layers.invert(x)
+        return x
