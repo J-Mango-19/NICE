@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 from torchvision import datasets
 from torchvision import transforms
 from torchvision.transforms import ToTensor
@@ -7,18 +8,22 @@ from torch.utils.data import Dataset, DataLoader
 
 from NICE import NICE
 
+import sys
+
 def train(normalizing_flow, dataloader, optimizer, epochs=1):
     training_loss = []
     for _ in range(epochs):
-        for x_batch in dataloader:
+        for x_batch, _ in dataloader:
+            x_batch = x_batch.view(-1, 28*28)
             z, log_jacobian = normalizing_flow(x_batch)
-            log_likelihood = normalizing_flow.latent_distribution.log_pdf(z) + log_jacobian
+            log_likelihood = normalizing_flow.latent_distr.log_pdf(z) + log_jacobian
             loss = -log_likelihood.sum()
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             training_loss.append(loss.item())
+            print(loss.item())
     return training_loss
 
 class Dequantize:
@@ -35,8 +40,17 @@ if __name__ == "__main__":
     dataloader = DataLoader(mnist_data, batch_size=32, shuffle=True)
     normalizing_flow = NICE()
 
+    # reconstructing from z without training
+    x = normalizing_flow.generate()
+    plt.imshow(x.detach().cpu().numpy().reshape(28, 28, 1), cmap="gray")
+    plt.savefig("pre-training")
+
     optimizer = torch.optim.Adam(normalizing_flow.parameters(), lr=0.0002, weight_decay=0.9)
 
     loss = train(normalizing_flow, dataloader, optimizer)
 
-    print(loss)
+    x = normalizing_flow.generate()
+    plt.imshow(x.detach().cpu().numpy().reshape(28, 28, 1), cmap="gray")
+    plt.savefig("post-training")
+
+

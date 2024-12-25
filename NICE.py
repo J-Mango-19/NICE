@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions.transformed_distribution import TransformedDistribution
 from torch.distributions.uniform import Uniform
 from torch.distributions.transforms import SigmoidTransform
@@ -14,7 +13,7 @@ class StandardLogisticDistribution:
         self.logistic_distr = TransformedDistribution(base_distr, transforms)
 
     def log_pdf(self, z):
-        return self.m.log_prob(z).sum(dim=1)
+        return self.logistic_distr.log_prob(z).sum(dim=1)
 
     def sample(self):
         return self.logistic_distr.sample()
@@ -22,6 +21,7 @@ class StandardLogisticDistribution:
 
 class MLP(nn.Module):
     def __init__(self, d1, d2):
+        super().__init__()
         self.layers = nn.Sequential(
                 nn.Linear(d1, 1000),
                 nn.ReLU(),
@@ -41,15 +41,18 @@ class additive_coupling_layer(nn.Module):
     def __init__(self, D, split):
         super().__init__()
 
-    self.m = MLP()
+        self.D = D
+        self.d_1 = D // 2
+        self.d_2 = D - self.d_1
+        self.m = MLP(self.d_1, self.d_2)
 
     def split(self, x):
         if self.split == 1:
-            x_i1 = x[:d]
-            x_i2 = x[d:]
+            x_i1 = x[..., :self.d_1]
+            x_i2 = x[..., self.d_1:]
         else:
-            x_i1 = x[d:]
-            x_i2 = x[:d]
+            x_i1 = x[..., self.d_1:]
+            x_i2 = x[..., :self.d_1]
         return x_i1, x_i2
 
     def forward(self, x):
@@ -57,7 +60,7 @@ class additive_coupling_layer(nn.Module):
         y_1 = x_1.clone()
         y_2 = x_2 + self.m(x_1)
 
-        y = torch.concat(y1, y2)
+        y = torch.concat((y_1, y_2), dim=-1)
         return y
 
     def invert(self, h):
@@ -66,7 +69,7 @@ class additive_coupling_layer(nn.Module):
         h_i1, h_i2 = self.split(h)
         x_i1 = h_i1
         x_i2 = h_i2 - self.m(h_i1)
-        x = torch.concat(x_i1, x_i2)
+        x = torch.concat((x_i1, x_i2), dim=-1)
         return x
 
 
@@ -75,7 +78,7 @@ class NICE(nn.Module):
         super().__init__()
         self.latent_distr = StandardLogisticDistribution(D)
         self.S = nn.Parameter(torch.randn(D))
-        coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2) for i in range(num_coupling_layers)])
+        self.coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2) for i in range(num_coupling_layers)])
 
     def forward(self, x):
         for coupling_layer in self.coupling_layers_list:
@@ -91,5 +94,5 @@ class NICE(nn.Module):
 
         # invert the coupling layers
         for coupling_layer in reversed(self.coupling_layers_list):
-            x = coupling_layers.invert(x)
+            x = coupling_layer.invert(x)
         return x
