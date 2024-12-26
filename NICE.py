@@ -6,13 +6,16 @@ from torch.distributions.transforms import SigmoidTransform
 from torch.distributions.transforms import AffineTransform
 
 # D is the dimension of the data, preserved through all transformations
-class StandardLogisticDistribution:
+class StandardLogisticDistribution(nn.Module):
     def __init__(self, D):
+        super().__init__()
         base_distr = Uniform(low=torch.zeros(D), high=torch.ones(D))
         transforms = [SigmoidTransform().inv, AffineTransform(loc=0, scale=1)]
         self.logistic_distr = TransformedDistribution(base_distr, transforms)
 
     def log_pdf(self, z):
+        self.logistic_distr.base_dist.low = self.logistic_distr.base_dist.low.to(z.device)
+        self.logistic_distr.base_dist.high = self.logistic_distr.base_dist.high.to(z.device)
         return self.logistic_distr.log_prob(z).sum(dim=1)
 
     def sample(self):
@@ -29,8 +32,7 @@ class MLP(nn.Module):
                 nn.ReLU(),
                 nn.Linear(1000, 1000),
                 nn.ReLU(),
-                nn.Linear(1000, 1000),
-                nn.ReLU(),
+                nn.Linear(1000, 1000), nn.ReLU(),
                 nn.Linear(1000, d2)
                 )
 
@@ -56,6 +58,7 @@ class additive_coupling_layer(nn.Module):
         return x_i1, x_i2
 
     def forward(self, x):
+        x = x.clone()
         x_1, x_2 = self.split(x)
         y_1 = x_1.clone()
         y_2 = x_2 + self.m(x_1)
@@ -66,6 +69,7 @@ class additive_coupling_layer(nn.Module):
     def invert(self, h):
         # original formula: h_i2 = x_i2 + m(x_i1)
         # new formula:      x_i2 = h_i2 - m(h_i1)
+        h = h.clone()
         h_i1, h_i2 = self.split(h)
         x_i1 = h_i1
         x_i2 = h_i2 - self.m(h_i1)
@@ -88,8 +92,8 @@ class NICE(nn.Module):
 
         return z, log_jacobian
 
-    def generate(self):
-        z = self.latent_distr.sample()
+    def generate(self, device='cpu'):
+        z = self.latent_distr.sample().to(device)
         x = z / self.S.exp()
 
         # invert the coupling layers

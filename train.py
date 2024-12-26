@@ -10,11 +10,12 @@ from NICE import NICE
 
 import sys
 
-def train(normalizing_flow, dataloader, optimizer, epochs=1):
+def train(normalizing_flow, dataloader, optimizer, epochs=1, device='cpu'):
     training_loss = []
-    for _ in range(epochs):
+    normalizing_flow.latent_distr.to(device)
+    for epoch in range(epochs):
         for x_batch, _ in dataloader:
-            x_batch = x_batch.view(-1, 28*28)
+            x_batch = x_batch.view(-1, 28*28).to(device)
             z, log_jacobian = normalizing_flow(x_batch)
             log_likelihood = normalizing_flow.latent_distr.log_pdf(z) + log_jacobian
             loss = -log_likelihood.sum()
@@ -23,7 +24,7 @@ def train(normalizing_flow, dataloader, optimizer, epochs=1):
             loss.backward()
             optimizer.step()
             training_loss.append(loss.item())
-            print(loss.item())
+        print(f'Loss at end of epoch {epoch}: {loss.item()}')
     return training_loss
 
 class Dequantize:
