@@ -8,8 +8,6 @@ from torch.utils.data import Dataset, DataLoader
 
 from NICE import NICE
 
-import sys
-
 def train(normalizing_flow, dataloader, optimizer, epochs=1, device='cpu'):
     training_loss = []
     normalizing_flow.latent_distr.to(device)
@@ -28,10 +26,11 @@ def train(normalizing_flow, dataloader, optimizer, epochs=1, device='cpu'):
     return training_loss
 
 class Dequantize:
-    def __call__(self, tensor, corruption_level=1):
+    def __call__(self, tensor, corruption_level=1.0):
+        tensor *= 255.0
         noise = corruption_level * torch.rand_like(tensor)
         tensor += noise
-        tensor /= (255 + corruption_level)
+        tensor /= (255.0 + corruption_level)
         return tensor
 
 if __name__ == "__main__":
