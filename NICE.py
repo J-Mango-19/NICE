@@ -40,16 +40,17 @@ class MLP(nn.Module):
         return self.layers(x)
 
 class additive_coupling_layer(nn.Module):
-    def __init__(self, D, split):
+    def __init__(self, D, split_half):
         super().__init__()
 
         self.D = D
         self.d_1 = D // 2
         self.d_2 = D - self.d_1
         self.m = MLP(self.d_1, self.d_2)
+        self.split_half = split_half
 
     def split(self, x):
-        if self.split == 1:
+        if self.split_half == 1:
             x_i1 = x[..., :self.d_1]
             x_i2 = x[..., self.d_1:]
         else:
@@ -63,17 +64,23 @@ class additive_coupling_layer(nn.Module):
         y_1 = x_1.clone()
         y_2 = x_2 + self.m(x_1)
 
-        y = torch.concat((y_1, y_2), dim=-1)
+        if self.split_half == 0:
+            y = torch.concat((y_2, y_1), dim=-1)
+        else:
+            y = torch.concat((y_1, y_2), dim=-1)
         return y
 
     def invert(self, h):
         # original formula: h_i2 = x_i2 + m(x_i1)
         # new formula:      x_i2 = h_i2 - m(h_i1)
         h = h.clone()
-        h_i1, h_i2 = self.split(h)
-        x_i1 = h_i1
-        x_i2 = h_i2 - self.m(h_i1)
-        x = torch.concat((x_i1, x_i2), dim=-1)
+        h_1, h_2 = self.split(h)
+        x_1 = h_1
+        x_2 = h_2 - self.m(h_1)
+        if self.split_half == 0:
+            x = torch.concat((x_2, x_1), dim=-1)
+        else:
+            x = torch.concat((x_1, x_2), dim=-1)
         return x
 
 
@@ -92,8 +99,10 @@ class NICE(nn.Module):
 
         return z, log_jacobian
 
-    def generate(self, device='cpu'):
-        z = self.latent_distr.sample().to(device)
+    def generate(self, z=None, device='cpu'):
+        if z == None:
+            z = self.latent_distr.sample().to(device)
+
         x = z / self.S.exp()
 
         # invert the coupling layers

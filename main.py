@@ -11,12 +11,20 @@ from NICE import NICE
 train_model = True
 
 if __name__ == "__main__":
-    device = 'cuda'
+    device = 'cpu'
     transform = transforms.Compose([ToTensor(), Dequantize()])
     mnist_data = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
 
     dataloader = DataLoader(mnist_data, batch_size=32, shuffle=True)
     normalizing_flow = NICE().to(device)
+
+    # test invertibility
+    x = normalizing_flow.generate()
+    x_latent, _ = normalizing_flow(x)
+
+    x_reconstructed = normalizing_flow.generate(x_latent)
+    assert torch.allclose(x, x_reconstructed,rtol=1e-04, atol=1e-06)
+
     try:
         normalizing_flow.load_state_dict(torch.load('normalizing_flow_weights.pth'))
     except FileNotFoundError:
