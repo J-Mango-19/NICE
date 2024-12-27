@@ -25,30 +25,30 @@ class StandardLogisticDistribution(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, d1, d2):
+    def __init__(self, d1, d2, num_hidden=1000):
         super().__init__()
         self.layers = nn.Sequential(
-                nn.Linear(d1, 1000),
+                nn.Linear(d1, num_hidden),
                 nn.ReLU(),
-                nn.Linear(1000, 1000),
+                nn.Linear(num_hidden, num_hidden),
                 nn.ReLU(),
-                nn.Linear(1000, 1000),
+                nn.Linear(num_hidden, num_hidden),
                 nn.ReLU(),
-                nn.Linear(1000, 1000), nn.ReLU(),
-                nn.Linear(1000, d2)
+                nn.Linear(num_hidden, num_hidden),
+                nn.ReLU(),
+                nn.Linear(num_hidden, d2)
                 )
 
     def forward(self, x):
         return self.layers(x)
 
 class additive_coupling_layer(nn.Module):
-    def __init__(self, D, split_half):
+    def __init__(self, D, split_half, MLP_num_hidden=1000):
         super().__init__()
-
         self.D = D
         self.d_1 = D // 2
         self.d_2 = D - self.d_1
-        self.m = MLP(self.d_1, self.d_2)
+        self.m = MLP(self.d_1, self.d_2, MLP_num_hidden)
         self.split_half = split_half
 
     def split(self, x):
@@ -87,16 +87,16 @@ class additive_coupling_layer(nn.Module):
 
 
 class NICE(nn.Module):
-    def __init__(self, num_coupling_layers=4, D=28*28):
+    def __init__(self, num_coupling_layers=4, D=28*28, MLP_num_hidden=1000):
         super().__init__()
         self.latent_distr = StandardLogisticDistribution(D)
         self.S = nn.Parameter(torch.randn(D))
-        self.coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2) for i in range(num_coupling_layers)])
+        self.coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2, MLP_num_hidden) for i in range(num_coupling_layers)])
 
     def forward(self, x):
         for coupling_layer in self.coupling_layers_list:
             x = coupling_layer(x)
-        z = self.S.exp() * x
+        z = torch.exp(self.S) * x
         log_jacobian = self.S.sum()
 
         return z, log_jacobian
@@ -105,7 +105,7 @@ class NICE(nn.Module):
         if z == None:
             z = self.latent_distr.sample().to(device)
 
-        x = z / self.S.exp()
+        x = z / torch.exp(self.S)
 
         # invert the coupling layers
         for coupling_layer in reversed(self.coupling_layers_list):
