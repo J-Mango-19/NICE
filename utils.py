@@ -17,7 +17,7 @@ def parse_args():
 
 def load_model(model, filename, device):
     try:
-        model.load_state_dict(torch.load(filename, map_location=device))
+        model.load_state_dict(torch.load(filename, weights_only=True, map_location=device))
         print(f"loaded model from {filename}")
     except FileNotFoundError:
         print(f"Failed to load model from {filename}")

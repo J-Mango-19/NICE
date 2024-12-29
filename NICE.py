@@ -1,48 +1,10 @@
 import torch
 import torch.nn as nn
-from torch.distributions.transformed_distribution import TransformedDistribution
-from torch.distributions.uniform import Uniform
-from torch.distributions.transforms import SigmoidTransform
-from torch.distributions.transforms import AffineTransform
 
-# D is the dimension of the data, preserved through all transformations
-class StandardLogisticDistribution(nn.Module):
-    def __init__(self, D):
-        super().__init__()
-        base_distr = Uniform(low=torch.zeros(D), high=torch.ones(D))
-        transforms = [SigmoidTransform().inv, AffineTransform(torch.zeros(D), torch.ones(D))]
-        self.logistic_distr = TransformedDistribution(base_distr, transforms)
+from neural_nets import MLP
+from base_distributions import StandardLogisticDistribution
 
-    def log_pdf(self, z):
-        self.logistic_distr.base_dist.low = self.logistic_distr.base_dist.low.to(z.device)
-        self.logistic_distr.base_dist.high = self.logistic_distr.base_dist.high.to(z.device)
-        self.logistic_distr.transforms[1].loc = self.logistic_distr.transforms[1].loc.to(z.device)
-        self.logistic_distr.transforms[1].scale = self.logistic_distr.transforms[1].scale.to(z.device)
-        return self.logistic_distr.log_prob(z).sum(dim=1)
-
-    def sample(self):
-        return self.logistic_distr.sample()
-
-
-class MLP(nn.Module):
-    def __init__(self, d1, d2, num_hidden=1000):
-        super().__init__()
-        self.layers = nn.Sequential(
-                nn.Linear(d1, num_hidden),
-                nn.ReLU(),
-                nn.Linear(num_hidden, num_hidden),
-                nn.ReLU(),
-                nn.Linear(num_hidden, num_hidden),
-                nn.ReLU(),
-                nn.Linear(num_hidden, num_hidden),
-                nn.ReLU(),
-                nn.Linear(num_hidden, d2)
-                )
-
-    def forward(self, x):
-        return self.layers(x)
-
-class additive_coupling_layer(nn.Module):
+class AdditiveCouplingLayer(nn.Module):
     def __init__(self, D, split_half, MLP_num_hidden=1000):
         super().__init__()
         self.D = D
@@ -91,7 +53,7 @@ class NICE(nn.Module):
         super().__init__()
         self.latent_distr = StandardLogisticDistribution(D)
         self.S = nn.Parameter(torch.randn(D))
-        self.coupling_layers_list = nn.ModuleList([additive_coupling_layer(D, i%2, MLP_num_hidden) for i in range(num_coupling_layers)])
+        self.coupling_layers_list = nn.ModuleList([AdditiveCouplingLayer(D, i%2, MLP_num_hidden) for i in range(num_coupling_layers)])
 
     def forward(self, x):
         for coupling_layer in self.coupling_layers_list:
