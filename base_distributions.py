@@ -6,9 +6,10 @@ from torch.distributions.transforms import SigmoidTransform
 from torch.distributions.transforms import AffineTransform
 
 
-# --------------------- NICE std logistic distribution ---------------- ###
+# --------------------- std logistic distribution ---------------- ###
+# NICE paper authors prefer std logistic over std normal for gradient stability
 
-# D is the dimension of the data, preserved through all transformations
+# D is the dimension of the data (as in NICE paper), preserved through all transformations
 class StandardLogisticDistribution(nn.Module):
     def __init__(self, D):
         super().__init__()
@@ -25,3 +26,17 @@ class StandardLogisticDistribution(nn.Module):
 
     def sample(self):
         return self.logistic_distr.sample()
+
+# --------------------- std normal distribution ---------------- ###
+# RealNVP authors prefer std normal. Probably less worried about gradients since they use batchnorm
+
+class StandardNormalDistribution(nn.Module):
+    def __init__(self, D):
+        super().__init__()
+        self.normal_distr = distributions.MultivariateNormal(loc=0, covariance_matrix=torch.eye(D))
+
+    def log_pdf(self, z):
+        return self.normal_distr.log_prob(z)
+
+    def sample(self):
+        return self.normal_distr.sample()

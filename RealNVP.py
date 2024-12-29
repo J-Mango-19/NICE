@@ -1,17 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.distributions as distributions
-
-class StandardNormalDistribution(nn.Module):
-    def __init__(self, D):
-        super().__init__()
-        self.normal_distr = distributions.MultivariateNormal(loc=0, covariance_matrix=torch.eye(D))
-
-    def log_pdf(self, z):
-        return self.normal_distr.log_prob(z)
-
-    def sample(self):
-        return self.normal_distr.sample()
+from base_distributions import StandardNormalDistribution
 
 class AffineCouplingLayer(nn.Module):
     def __init__(self, D, split_half, resnet_hidden_channels=64):
@@ -33,5 +22,9 @@ class AffineCouplingLayer(nn.Module):
     def forward(self, x):
         # TODO: mask, return out = s(masked_input) * (other_mask) + t(masked_input)  
         pass
+
+class RealNVP(nn.Module):
+    super().__init__()
+    self.base_distr = StandardNormalDistribution() # needs some kind of dimension: How do 2d inputs get mapped to a standard normal?
 
 

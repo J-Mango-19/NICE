@@ -22,15 +22,33 @@ if __name__ == "__main__":
     # pre training invertibility check
     test_invertibility(nice_model, device)
 
-    load_model(nice_model, 'normalizing_flow_weights.pth', device)
+    # load .pth weights if possible
+    """
+    model_load_success = load_model(nice_model, 'normalizing_flow_weights.pth', device)
+    if model_load_success and not args.train:
+        plot_random_samples(nice_model, device)
+    """
+
+    print(f'{args.beta_1=}')
+    print(f'{args.beta_2=}')
+    print(f'{args.lr=}')
+    print(f'{args.eps=}')
+    print(f'{args.wd=}')
+
+
+    # after loaded model invertibility check
+    test_invertibility(nice_model, device)
 
     if args.train == True:
-        nice_model.train()
-        optimizer = torch.optim.Adam(nice_model.parameters(), lr=args.lr, weight_decay=args.wd)
+        optimizer = torch.optim.Adam(nice_model.parameters(), lr=args.lr, betas=(0.9, args.beta_2), eps=args.eps, weight_decay=args.wd)
         loss = train(nice_model, dataloader, optimizer, epochs=args.epochs, device=device)
-        torch.save(nice_model.state_dict(), 'nice_model_weights.pth')
+
+        # save weights
+        #torch.save(nice_model.state_dict(), 'nice_model_weights.pth')
+
+        # save loss plot and randomly generated samples
         plt.plot(loss)
         plt.savefig("assets/loss.png")
+        plot_random_samples(nice_model, device)
 
-    plot_random_samples(nice_model, device)
 
