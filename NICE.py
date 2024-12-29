@@ -38,7 +38,6 @@ class AdditiveCouplingLayer(nn.Module):
         return x
 
     def forward(self, x):
-        print(f'mean of incoming x in coupling layer forward pass: {x.mean()}')
         # Alternate (by coupling layer) which half of the data is fed to the coupling fxn m
         x_i1, x_i2 = self.split(x) # x_i1, x_i2 defined in same way as in section 3.2 of paper
 
@@ -50,7 +49,6 @@ class AdditiveCouplingLayer(nn.Module):
 
         y = self.concatenate_in_order(y_i1, y_i2)
 
-        print(f'mean of outgoing y in coupling layer forward pass: {y.mean()}')
         return y
         """
         if self.layer_partition == 1:

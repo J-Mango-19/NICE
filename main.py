@@ -29,13 +29,6 @@ if __name__ == "__main__":
         plot_random_samples(nice_model, device)
     """
 
-    print(f'{args.beta_1=}')
-    print(f'{args.beta_2=}')
-    print(f'{args.lr=}')
-    print(f'{args.eps=}')
-    print(f'{args.wd=}')
-
-
     # after loaded model invertibility check
     test_invertibility(nice_model, device)
 
