@@ -25,15 +25,15 @@ the other addend of the loss, the log Jacobian determinant, can be (very) positi
 remains a constant 1 through all coupling layers. These exponentiated S values are only bounded by being positive, so the log of their product can also be positive. For large values, 
 this term dominates log-likelihood, making it positive, and the negative log-likelihood negative.
 
-![NICE_Criterion](assets/NICE_criterion.png)
+![NICE_Criterion](assets/NICE_criterion.jpg)
 
 ### Experiment
 
 Run `python experiments.py` to generate the visualizations seen in the next section. As noted by the authors, the latent vector elements with the lowest corresponding exp(S_ii) coefficients 
 are the most influential. Identifying and modifiying these influential latents open the door for a number of experiments. See section 3.3 of the paper and `experiment.py` for details. 
 
-![multi_img_exp](assets/multi_img_exp)
-![simg_img_exp](assets/single_img_exp)
+![multi_img_exp](assets/latent_traversals_multi_idx.png)
+![simg_img_exp](assets/latent_traversals_multi_img.png)
 
 # RealNVP
 
