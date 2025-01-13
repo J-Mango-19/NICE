@@ -48,15 +48,7 @@ class AdditiveCouplingLayer(nn.Module):
         y_i2 = x_i2 + self.m(x_i1)
 
         y = self.concatenate_in_order(y_i1, y_i2)
-
         return y
-        """
-        if self.layer_partition == 1:
-            y = torch.concat((y_1, y_2), dim=-1)
-        else:
-            y = torch.concat((y_2, y_1), dim=-1)
-        return y
-        """
 
     def invert(self, h):
         # forward pass:         h_i2 = x_i2 + m(x_i1)
@@ -71,15 +63,6 @@ class AdditiveCouplingLayer(nn.Module):
 
         x = self.concatenate_in_order(x_i1, x_i2)
         return x
-        """
-        # x must be concatenated in the original order of x
-        if self.layer_partition == 0:
-            x = torch.concat((x_2, x_1), dim=-1)
-        else:
-            x = torch.concat((x_1, x_2), dim=-1)
-        return x
-        """
-
 
 class NICE(nn.Module):
     def __init__(self, num_coupling_layers=4, D=28*28, MLP_num_hidden=1000):
